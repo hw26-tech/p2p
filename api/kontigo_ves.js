@@ -1,7 +1,7 @@
 const fetch = require('node-fetch');
 
 module.exports = async (req, res) => {
-  // CORS para que el frontend pueda llamar sin peo
+  // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -79,12 +79,13 @@ module.exports = async (req, res) => {
     }
 
     // --------- SIMULACIÓN KONTIGO ---------
-    // Aquí ajustas a tu gusto, esto es puro spread encima de Binance
-    const SPREAD_BUY = 0.015;  // +1.5% para compra
-    const SPREAD_SELL = 0.020; // +2.0% para venta
+    // Kontigo suele estar un poco más bajo que Binance
+    // Ajusta estos porcentajes según lo que veas en la app real
+    const KONTIGO_BUY_FACTOR = 0.98;   // -2% (Kontigo compra ~2% menos que Binance)
+    const KONTIGO_SELL_FACTOR = 0.90;  // -10% (Kontigo venta ~10% menos que Binance)
 
-    const kontigoBuy = binanceBuy * (1 + SPREAD_BUY);
-    const kontigoSell = binanceSell * (1 + SPREAD_SELL);
+    const kontigoBuy = binanceBuy * KONTIGO_BUY_FACTOR;
+    const kontigoSell = binanceSell * KONTIGO_SELL_FACTOR;
 
     return res.status(200).json({
       success: true,
@@ -95,7 +96,7 @@ module.exports = async (req, res) => {
       },
       buy: kontigoBuy,
       sell: kontigoSell,
-      note: 'Kontigo simulado. No usa API oficial; se calcula desde Binance + spread.'
+      note: 'Kontigo simulado: Buy -2%, Sell -10% vs Binance'
     });
 
   } catch (err) {
