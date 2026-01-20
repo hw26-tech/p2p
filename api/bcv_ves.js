@@ -40,6 +40,20 @@ module.exports = async (req, res) => {
     }
 
     const html = await r.text();
+
+    // LOG: imprime los primeros 3000 caracteres del HTML
+    console.log('=== HTML RECIBIDO ===');
+    console.log(html.slice(0, 3000));
+    console.log('=== FIN HTML ===');
+
+    // Busca "344" o cualquier número de 3 dígitos
+    const simpleMatch = html.match(/\d{2,}\.\d{2}/);
+    console.log('Simple match (cualquier número):', simpleMatch);
+
+    // Busca específicamente "Tasa BCV"
+    const bcvMatch = html.match(/Tasa\s*BCV/i);
+    console.log('¿Encontró "Tasa BCV"?:', bcvMatch ? 'SÍ' : 'NO');
+
     const regex = /Tasa\s*BCV[\s\S]*?(\d{1,3}(?:[\.,]\d{3})*[\.,]\d{1,2})(?=\s*Bs)/i;
     const match = html.match(regex);
 
