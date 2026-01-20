@@ -1,25 +1,24 @@
 const fetch = require('node-fetch');
 
+// Limpia y convierte un número con cualquier formato venezolano
 function parseNumber(str) {
   if (!str) return null;
-  let s = String(str).trim();
+  let s = str.trim();
 
   // Quitar espacios
   s = s.replace(/\s+/g, '');
 
-  // Casos típicos: 344.51   /   344,51   /   1.234,56   /   1,234.56
-  const hasDot = s.includes('.');
-  const hasComma = s.includes(',');
-
-  if (hasDot && hasComma) {
-    // El último separador es el decimal
+  // Si tiene miles y decimales mezclados
+  if (s.includes('.') && s.includes(',')) {
+    // Determinar cuál es decimal (el último separador)
     const lastDot = s.lastIndexOf('.');
     const lastComma = s.lastIndexOf(',');
-    const decimalSep = lastDot > lastComma ? '.' : ',';
-    const thousandSep = decimalSep === '.' ? ',' : '.';
-    s = s.split(thousandSep).join('');
-    s = s.replace(decimalSep, '.');
-  } else if (hasComma && !hasDot) {
+    const decimal = lastDot > lastComma ? '.' : ',';
+    const thousand = decimal === '.' ? ',' : '.';
+
+    s = s.split(thousand).join(''); // quitar miles
+    s = s.replace(decimal, '.');    // dejar decimal en punto
+  } else if (s.includes(',')) {
     s = s.replace(',', '.');
   }
 
@@ -27,64 +26,49 @@ function parseNumber(str) {
   return Number.isFinite(n) ? n : null;
 }
 
-// Probaremos varios patrones por si la web cambia el texto
-function extractBcvRateFromHtml(html) {
-  const patterns = [
-    /Tasa\s*BCV[\s\S]*?(\d[\d.,]*)\s*Bs\/USD/i,
-    /Tasa\s*BCV[\s\S]*?(\d[\d.,]*)\s*Bs\s*\/\s*USD/i,
-    /Tasa\s*oficial[\s\S]*?(\d[\d.,]*)\s*Bs\/USD/i,
-    /BCV[\s\S]*?(\d[\d.,]*)\s*Bs\/USD/i
-  ];
-
-  for (const re of patterns) {
-    const m = html.match(re);
-    if (m) {
-      const val = parseNumber(m[1]);
-      if (val) return val;
-    }
-  }
-
-  return null;
-}
-
-module.exports = async (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+module.exports = async (req, reHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  res.setHeader('Cache-Control', 'no-store');
-
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
-    const url = 'https://www.monitordedivisavenezuela.com/';
+    const url = "https://www.monitordedivisavenezuela.com/";
     const r = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
-      }
+      headers: { "User-Agent": "Mozilla/5.0" }
     });
 
     if (!r.ok) {
-      throw new Error('No pude abrir Monitor de Divisas (HTTP ' + r.status + ')');
+      throw new Error("HTTP " + r.status);
     }
 
     const html = await r.text();
 
-    // DEBUG básico: si quieres, puedes loguear un pedazo del HTML
-    // console.log(html.slice(0, 1000));
+    // Regex ULTRA flexible:
+    // Busca "Tasa BCV", luego cualquier vaina HTML, luego un número antes de "Bs"
+    const regex = /Tasa\s*BCV[\s\S]*?(\d{1,3}(?:[\.,]\d{3})*[\.,]\d{1,2})(?=\s*Bs)/i;
 
-    const rate = extractBcvRateFromHtml(html);
+    const match = html.match(regex);
+
+    if (!match) {
+      throw new Error("No pude extraer la tasa BCV (la página cambió otra vez)");
+    }
+
+    const rate = parseNumber(match[1]);
 
     if (!rate) {
-      throw new Error('No pude extraer la tasa BCV desde el HTML (regex no hizo match)');
+      throw new Error("El número encontrado no se pudo convertir");
     }
 
     return res.status(200).json({
       success: true,
-      source: 'monitordedivisavenezuela.com (Tasa BCV)',
+      source: "MonitorDeDivisaVenezuela.com",
       rate
     });
+
   } catch (err) {
-    console.error('bcv_ves error:', err);
-    return res.status(500).json({ success: false, error: err.message });
+    console.error("bcv_ves error:", err);
+    res.status(500).json({
+      success: false,
+      error: err.message
+    });
   }
 };
