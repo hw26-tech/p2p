@@ -1,0 +1,12 @@
+{
+  "name": "p2p-price-nodejs",
+  "version": "1.0.0",
+  "description": "Binance P2P y Kontigo en Node.js para Vercel",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "node-fetch": "^2.6.7"
+  }
+}
