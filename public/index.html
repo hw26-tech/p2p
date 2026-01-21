@@ -473,12 +473,66 @@
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
+
+    /* Estilos Modo Kiosko */
+    body.kiosko-mode {
+      padding: 0;
+      background: #000;
+    }
+
+    .kiosko-mode header, 
+    .kiosko-mode .brecha-section, 
+    .kiosko-mode .alert-section, 
+    .kiosko-mode .calculator, 
+    .kiosko-mode .chart-container, 
+    .kiosko-mode footer {
+      display: none !important;
+    }
+
+    .kiosko-mode .container {
+      max-width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .kiosko-mode .grid {
+      grid-template-columns: repeat(3, 1fr);
+      width: 95%;
+      gap: 2rem;
+    }
+
+    .kiosko-mode .card {
+      padding: 3rem 2rem;
+      background: rgba(30, 41, 59, 0.4);
+      border-width: 2px;
+    }
+
+    .kiosko-mode .price-value {
+      font-size: 4rem;
+    }
+
+    .kiosko-mode .card-title {
+      font-size: 2rem;
+    }
+
+    .kiosko-toggle {
+      background: rgba(148, 163, 184, 0.1);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      color: #94a3b8;
+      padding: 0.5rem;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      float: right;
+    }
+
   </style>
 </head>
 <body>
   <div class="container">
     <header>
-      <h1>💱 P2P Price Tracker</h1>
+      <h1>💱 P2P Price Tracker <button class="kiosko-toggle" onclick="toggleKiosko()" title="Modo Kiosko">⛶</button></h1>
       <p class="subtitle">Binance P2P vs Kontigo vs BCV • Tasas en Bolívares (Bs)</p>
       <p class="subtitle">Actualización automática cada 30 segundos</p>
       <p class="timestamp">Última actualización: <span id="lastUpdate">—</span></p>
@@ -626,7 +680,16 @@
 
     <!-- GRÁFICO HISTÓRICO -->
     <div class="chart-container">
-      <div class="chart-title">📊 Histórico (últimas 24h)</div>
+      
+      <div class="chart-title" style="display: flex; justify-content: space-between; align-items: center;">
+        <span>📊 Histórico</span>
+        <div class="favorites" style="margin-bottom: 0;">
+          <button class="favorite-btn" style="font-size: 0.7rem; padding: 0.3rem 0.6rem;" onclick="loadHistory('1d')">Hoy</button>
+          <button class="favorite-btn" style="font-size: 0.7rem; padding: 0.3rem 0.6rem;" onclick="loadHistory('7d')">7D</button>
+          <button class="favorite-btn" style="font-size: 0.7rem; padding: 0.3rem 0.6rem;" onclick="loadHistory('30d')">30D</button>
+        </div>
+      </div>
+
       <canvas id="priceChart"></canvas>
     </div>
 
@@ -779,9 +842,9 @@
     }
 
     // Cargar histórico para gráfico
-    async function loadHistory() {
+    async function loadHistory(range = "1d") {
       try {
-        const res = await fetch('/api/history');
+        const res = await fetch(`/api/history?range=${range}`);
         const data = await res.json();
         if (data.success) {
           priceHistory = data.history;
@@ -1039,6 +1102,16 @@
       navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW error:', err));
     }
 
+
+
+    function toggleKiosko() {
+      document.body.classList.toggle('kiosko-mode');
+      if(document.body.classList.contains('kiosko-mode')) {
+        document.documentElement.requestFullscreen().catch(e => console.log(e));
+      } else {
+        if(document.fullscreenElement) document.exitFullscreen();
+      }
+    }
 
     // Actualización forzada
     async function forceRefresh() {
