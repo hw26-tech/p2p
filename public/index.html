@@ -566,6 +566,30 @@
       left: -9999px; /* Escondido */
     }
 
+
+    .notif-btn {
+      background: rgba(168, 85, 247, 0.2);
+      border: 1px solid rgba(168, 85, 247, 0.3);
+      color: #c084fc;
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.85rem;
+      transition: all 0.3s ease;
+      margin-left: 0.5rem;
+    }
+
+    .notif-btn:hover {
+      background: rgba(168, 85, 247, 0.3);
+    }
+
+    .notif-btn.active {
+      background: rgba(16, 185, 129, 0.3);
+      border-color: rgba(16, 185, 129, 0.5);
+      color: #10b981;
+    }
+
   </style>
 </head>
 <body>
@@ -573,7 +597,7 @@
     <header>
       <h1>💱 P2P Price Tracker <button class="kiosko-toggle" onclick="toggleKiosko()" title="Modo Kiosko">⛶</button> <button class="kiosko-toggle" onclick="generateCapture()" title="Generar Imagen para Estado">📸</button></h1>
       <p class="subtitle">Binance P2P vs Kontigo vs BCV • Tasas en Bolívares (Bs)</p>
-      <p class="subtitle">Actualización automática cada 30 segundos</p>
+      <p class="subtitle">Actualización automática cada 30 segundos <button class="notif-btn" id="notifBtn" onclick="toggleNotifications()">🔔 Activar Notificaciones</button></p>
       <p class="timestamp">Última actualización: <span id="lastUpdate">—</span></p>
       <p class="timestamp">Próxima actualización en: <span id="nextUpdate">—</span>s</p>
     </header>
@@ -1032,6 +1056,11 @@
             })
           });
           alertConfig.lastAlertTime = now;
+          sendNotification(
+            '🚨 ALERTA DE PRECIO',
+            `Binance ha superado tu umbral: ${formatBs((currentData.binance_buy + currentData.binance_sell) / 2)}`,
+            'threshold'
+          );
         } catch (err) {
           console.error('Error sending alert:', err);
         }
@@ -1154,6 +1183,82 @@
 
 
 
+
+    // Sistema de Notificaciones Push
+    let notificationsEnabled = localStorage.getItem('notificationsEnabled') === 'true';
+    let lastNotificationTime = {
+      arbitraje: 0,
+      sniper: 0,
+      threshold: 0
+    };
+
+    function toggleNotifications() {
+      const btn = document.getElementById('notifBtn');
+
+      if (!('Notification' in window)) {
+        alert('Tu navegador no soporta notificaciones 😢');
+        return;
+      }
+
+      if (notificationsEnabled) {
+        // Desactivar
+        notificationsEnabled = false;
+        localStorage.setItem('notificationsEnabled', 'false');
+        btn.classList.remove('active');
+        btn.textContent = '🔔 Activar Notificaciones';
+      } else {
+        // Activar - pedir permiso
+        Notification.requestPermission().then(permission => {
+          if (permission === 'granted') {
+            notificationsEnabled = true;
+            localStorage.setItem('notificationsEnabled', 'true');
+            btn.classList.add('active');
+            btn.textContent = '🔕 Notificaciones ON';
+
+            // Notificación de prueba
+            new Notification('¡Notificaciones activadas!', {
+              body: 'Ahora te avisaremos de oportunidades y alertas de precio',
+              icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y="75" font-size="75">💰</text></svg>'
+            });
+          } else {
+            alert('Necesitas dar permiso para recibir notificaciones');
+          }
+        });
+      }
+    }
+
+    function sendNotification(title, body, type = 'info') {
+      if (!notificationsEnabled) return;
+
+      const now = Date.now();
+      // Evitar spam: máximo 1 notificación del mismo tipo cada 5 minutos
+      if (now - lastNotificationTime[type] < 300000) return;
+
+      const icons = {
+        arbitraje: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y="75" font-size="75">💰</text></svg>',
+        sniper: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y="75" font-size="75">🎯</text></svg>',
+        threshold: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y="75" font-size="75">🚨</text></svg>'
+      };
+
+      new Notification(title, {
+        body: body,
+        icon: icons[type] || icons.info,
+        badge: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y="75" font-size="75">₿</text></svg>',
+        requireInteraction: true // La notificación no se cierra sola
+      });
+
+      lastNotificationTime[type] = now;
+    }
+
+    // Inicializar botón de notificaciones
+    window.addEventListener('load', () => {
+      const btn = document.getElementById('notifBtn');
+      if (notificationsEnabled && Notification.permission === 'granted') {
+        btn.classList.add('active');
+        btn.textContent = '🔕 Notificaciones ON';
+      }
+    });
+
     // Sonido de caja registradora
     const cashSound = new Audio('https://www.myinstants.com/media/sounds/cash-register-purchase.mp3');
 
@@ -1169,7 +1274,14 @@
         if (profitPercent > 0.5) { // Si la ganancia es mayor al 0.5%
           panel.style.display = 'block';
           document.getElementById('arbitrajeMsg').textContent = `Ganancia neta: ${profitPercent.toFixed(2)}% (Bs ${profit.toFixed(2)} por $)`;
-          if (profitPercent > 1.5) cashSound.play();
+          if (profitPercent > 1.5) {
+            cashSound.play();
+            sendNotification(
+              '💰 ¡OPORTUNIDAD DE ARBITRAJE!',
+              `Ganancia de ${profitPercent.toFixed(2)}% comprando en Binance y vendiendo en Kontigo`,
+              'arbitraje'
+            );
+          }
         } else {
           panel.style.display = 'none';
         }
@@ -1183,6 +1295,11 @@
       // Si el precio de compra es 1% menor al promedio, es una ganga
       if (currentData.binance_buy < (avg * 0.99)) {
         binanceCard.classList.add('sniper-alert');
+        sendNotification(
+          '🎯 ¡GANGA DETECTADA!',
+          `Precio de compra en Binance está ${formatBs(currentData.binance_buy)} - ¡Por debajo del promedio!`,
+          'sniper'
+        );
       } else {
         binanceCard.classList.remove('sniper-alert');
       }
