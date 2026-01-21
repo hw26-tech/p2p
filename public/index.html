@@ -870,29 +870,58 @@
     }
 
     // Calculadora
-    function updateCalc() {
-      const usd = Number(document.getElementById('calcUSD').value) || 0;
-      const rateType = document.getElementById('calcRate').value;
+   function updateCalcFromUSD() {
+  const usd = Number(document.getElementById('calcUSD').value) || 0;
+  const rateType = document.getElementById('calcRate').value;
 
-      let rate = 0;
-      if (rateType === 'binance') {
-        rate = (currentData.binance_buy + currentData.binance_sell) / 2;
-      } else if (rateType === 'kontigo') {
-        rate = (currentData.kontigo_buy + currentData.kontigo_sell) / 2;
-      } else {
-        rate = currentData.bcv;
-      }
+  let rate = rateType === 'binance'
+    ? (currentData.binance_buy + currentData.binance_sell) / 2
+    : rateType === 'kontigo'
+      ? (currentData.kontigo_buy + currentData.kontigo_sell) / 2
+      : currentData.bcv;
 
-      const result = usd * rate;
-      document.getElementById('calcResult').textContent = formatBs(result);
-    }
+  const bs = usd * rate;
+  document.getElementById('calcResult').textContent = formatBs(bs);
+}
+
+function updateCalcFromBS() {
+  const bs = Number(document.getElementById('calcBS').value) || 0;
+  const rateType = document.getElementById('calcRate').value;
+
+  let rate = rateType === 'binance'
+    ? (currentData.binance_buy + currentData.binance_sell) / 2
+    : rateType === 'kontigo'
+      ? (currentData.kontigo_buy + currentData.kontigo_sell) / 2
+      : currentData.bcv;
+
+  const usd = bs / rate;
+  document.getElementById('calcUSD').value = usd.toFixed(2);
+  document.getElementById('calcResult').textContent = formatBs(bs);
+}}
 
     // Compartir
-    function copyCalcResult() {
-      const text = document.getElementById('calcResult').textContent;
-      navigator.clipboard.writeText(text);
-      alert('Copiado: ' + text);
-    }
+   function copyCalcResult() {
+  const usd = Number(document.getElementById('calcUSD').value) || 0;
+  const bs = document.getElementById('calcResult').textContent;
+  const rateType = document.getElementById('calcRate').value;
+
+  let rateName = rateType === 'binance' ? 'Binance' : rateType === 'kontigo' ? 'Kontigo' : 'BCV';
+  let rate = 0;
+
+  if (rateType === 'binance') rate = (currentData.binance_buy + currentData.binance_sell) / 2;
+  if (rateType === 'kontigo') rate = (currentData.kontigo_buy + currentData.kontigo_sell) / 2;
+  if (rateType === 'bcv') rate = currentData.bcv;
+
+  const text = 
+`🧮 Conversión:
+Tasa usada: ${rateName} = ${formatBs(rate)}
+Monto: $${usd} → ${bs}
+
+Vía P2P Price Tracker`;
+
+  navigator.clipboard.writeText(text);
+  alert("Resultado copiado!");
+}
 
     function shareCalcWhatsApp() {
       const usd = document.getElementById('calcUSD').value;
@@ -903,11 +932,20 @@
     }
 
     function copyCurrentRate() {
-      const binanceAvg = (currentData.binance_buy + currentData.binance_sell) / 2;
-      const text = `📊 Tasas actuales:\nBinance: $${formatBs(binanceAvg)}\nBCV: $${formatBs(currentData.bcv)}\nBrecha: $${currentData.brecha.toFixed(2)}%`;
-      navigator.clipboard.writeText(text);
-      alert('Copiado al portapapeles');
-    }
+  const binanceAvg = (currentData.binance_buy + currentData.binance_sell) / 2;
+  const kontigoAvg = (currentData.kontigo_buy + currentData.kontigo_sell) / 2;
+
+  const text = 
+`📊 Tasas actuales:
+🔹 Binance: ${formatBs(binanceAvg)}
+🔹 Kontigo: ${formatBs(kontigoAvg)}
+🏦 BCV: ${formatBs(currentData.bcv)}
+
+Vía P2P Price Tracker`;
+
+  navigator.clipboard.writeText(text);
+  alert('Tasas copiadas!');
+}
 
     function shareCurrentWhatsApp() {
       const binanceAvg = (currentData.binance_buy + currentData.binance_sell) / 2;
