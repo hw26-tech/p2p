@@ -13,6 +13,7 @@
   
   <!-- Chart.js para gráficos -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   
   <title>P2P Price Tracker - Binance vs Kontigo vs BCV</title>
   <style>
@@ -527,12 +528,50 @@
       float: right;
     }
 
+
+    /* Estilos Arbitraje y Sniper */
+    .arbitraje-card {
+      background: linear-gradient(135deg, #065f46, #064e3b);
+      border: 2px solid #10b981;
+      padding: 1rem;
+      border-radius: 1rem;
+      margin-bottom: 2rem;
+      text-align: center;
+      display: none; /* Se muestra solo si hay ganancia */
+      animation: pulse-green 2s infinite;
+    }
+
+    @keyframes pulse-green {
+      0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+      70% { box-shadow: 0 0 0 15px rgba(16, 185, 129, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
+
+    .sniper-alert {
+      animation: flash-red 0.5s infinite;
+      border: 2px solid #ef4444 !important;
+    }
+
+    @keyframes flash-red {
+      0% { background: rgba(239, 68, 68, 0.2); }
+      50% { background: rgba(239, 68, 68, 0.5); }
+      100% { background: rgba(239, 68, 68, 0.2); }
+    }
+
+    .capture-area {
+      padding: 20px;
+      background: #0f172a;
+      width: 400px;
+      position: fixed;
+      left: -9999px; /* Escondido */
+    }
+
   </style>
 </head>
 <body>
   <div class="container">
     <header>
-      <h1>💱 P2P Price Tracker <button class="kiosko-toggle" onclick="toggleKiosko()" title="Modo Kiosko">⛶</button></h1>
+      <h1>💱 P2P Price Tracker <button class="kiosko-toggle" onclick="toggleKiosko()" title="Modo Kiosko">⛶</button> <button class="kiosko-toggle" onclick="generateCapture()" title="Generar Imagen para Estado">📸</button></h1>
       <p class="subtitle">Binance P2P vs Kontigo vs BCV • Tasas en Bolívares (Bs)</p>
       <p class="subtitle">Actualización automática cada 30 segundos</p>
       <p class="timestamp">Última actualización: <span id="lastUpdate">—</span></p>
@@ -540,6 +579,14 @@
     </header>
 
     <!-- TARJETAS DE TASAS -->
+    
+    <!-- PANEL DE ARBITRAJE -->
+    <div id="arbitrajePanel" class="arbitraje-card">
+      <h3 style="color: #34d399;">💰 ¡OPORTUNIDAD DE ARBITRAJE!</h3>
+      <p id="arbitrajeMsg" style="font-size: 1.1rem; font-weight: bold; margin: 0.5rem 0;"></p>
+      <p style="font-size: 0.8rem; opacity: 0.8;">Compra en Binance y vende en Kontigo para ganar.</p>
+    </div>
+
     <div class="grid">
       <!-- Binance -->
       <div class="card">
@@ -783,6 +830,8 @@
         }
 
         updateBrecha();
+        checkArbitraje();
+        checkSniper();
         updateTimestamp();
         saveToHistory();
         checkAlert();
@@ -1103,6 +1152,66 @@
     }
 
 
+
+
+    // Sonido de caja registradora
+    const cashSound = new Audio('https://www.myinstants.com/media/sounds/cash-register-purchase.mp3');
+
+    function checkArbitraje() {
+      const binanceBuy = currentData.binance_buy;
+      const kontigoSell = currentData.kontigo_sell;
+
+      if (binanceBuy > 0 && kontigoSell > 0) {
+        const profit = kontigoSell - binanceBuy;
+        const profitPercent = (profit / binanceBuy) * 100;
+
+        const panel = document.getElementById('arbitrajePanel');
+        if (profitPercent > 0.5) { // Si la ganancia es mayor al 0.5%
+          panel.style.display = 'block';
+          document.getElementById('arbitrajeMsg').textContent = `Ganancia neta: ${profitPercent.toFixed(2)}% (Bs ${profit.toFixed(2)} por $)`;
+          if (profitPercent > 1.5) cashSound.play();
+        } else {
+          panel.style.display = 'none';
+        }
+      }
+    }
+
+    function checkSniper() {
+      const binanceCard = document.querySelector('.card'); // La primera es Binance
+      const avg = (currentData.binance_buy + currentData.binance_sell) / 2;
+
+      // Si el precio de compra es 1% menor al promedio, es una ganga
+      if (currentData.binance_buy < (avg * 0.99)) {
+        binanceCard.classList.add('sniper-alert');
+      } else {
+        binanceCard.classList.remove('sniper-alert');
+      }
+    }
+
+    async function generateCapture() {
+      const captureArea = document.createElement('div');
+      captureArea.className = 'capture-area';
+      captureArea.innerHTML = `
+        <div style="text-align: center; border: 2px solid #3b82f6; padding: 20px; border-radius: 15px; background: #1e293b;">
+          <h2 style="color: #60a5fa; margin-bottom: 15px;">🔥 TASAS HW DEL MOMENTO</h2>
+          <div style="margin-bottom: 10px; font-size: 24px; color: #fbbf24;">🔸 Binance: ${document.getElementById('binanceAvg').textContent}</div>
+          <div style="margin-bottom: 10px; font-size: 24px; color: #10b981;">🔹 Kontigo: ${document.getElementById('kontigoAvg').textContent}</div>
+          <div style="margin-bottom: 10px; font-size: 24px; color: #94a3b8;">🏦 BCV: ${document.getElementById('bcvRate').textContent}</div>
+          <hr style="border: 0; border-top: 1px solid #475569; margin: 15px 0;">
+          <div style="font-size: 14px; color: #64748b;">Actualizado: ${new Date().toLocaleTimeString()}</div>
+          <div style="font-size: 12px; color: #3b82f6; margin-top: 5px;">p2p-price.vercel.app</div>
+        </div>
+      `;
+      document.body.appendChild(captureArea);
+
+      const canvas = await html2canvas(captureArea);
+      const image = canvas.toDataURL("image/png");
+      const link = document.createElement('a');
+      link.download = `Tasas_HW_${Date.now()}.png`;
+      link.href = image;
+      link.click();
+      document.body.removeChild(captureArea);
+    }
 
     function toggleKiosko() {
       document.body.classList.toggle('kiosko-mode');
