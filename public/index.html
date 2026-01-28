@@ -666,7 +666,7 @@
         </div>
         <div class="price-row">
           <span class="price-label">Fuente:</span>
-          <span style="color: #94a3b8; font-size: 0.9rem;">HW API</span>
+          <span style="color: #94a3b8; font-size: 0.9rem;">Exchange Rate API</span>
         </div>
         <p class="status" id="bcvStatus"><span class="loading"></span> Cargando...</p>
       </div>
@@ -775,7 +775,7 @@
     </div>
 
     <footer>
-      <p>CEO: @hwisintainer • PWA instalable • Datos en tiempo real</p>
+      <p>Backend: Node.js en Vercel • PWA instalable • Datos en tiempo real</p>
       <p style="margin-top: 1rem; color: #475569;">Hecho con ❤️ para Venezuela</p>
     </footer>
   </div>
@@ -809,6 +809,25 @@
     }
 
     // Cargar datos
+
+    // Función para fetch con tiempo límite (Timeout)
+    async function fetchWithTimeout(resource, options = {}) {
+      const { timeout = 8000 } = options;
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), timeout);
+      try {
+        const response = await fetch(resource, {
+          ...options,
+          signal: controller.signal
+        });
+        clearTimeout(id);
+        return response;
+      } catch (error) {
+        clearTimeout(id);
+        throw error;
+      }
+    }
+
     async function loadData() {
       try {
         const [binanceRes, kontigoRes, bcvRes] = await Promise.all([
@@ -897,7 +916,7 @@
     // Guardar histórico
     async function saveToHistory() {
       try {
-        await fetch('/api/history', {
+        await fetchWithTimeout('/api/history', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -915,16 +934,24 @@
     }
 
     // Cargar histórico para gráfico
-    async function loadHistory(range = "1d") {
+    async function loadHistory(range = '1d') {
+      console.log('Cargando historial:', range);
       try {
-        const res = await fetch(`/api/history?range=${range}`);
+        const res = await fetchWithTimeout(`/api/history?range=${range}`);
         const data = await res.json();
-        if (data.success) {
+        if (data.success && data.history && Array.isArray(data.history) && data.history.length > 0) {
           priceHistory = data.history;
+          console.log(`Historial cargado: ${data.history.length} puntos`);
+          updateChart();
+        } else {
+          console.warn('No hay datos de historial');
+          priceHistory = [];
           updateChart();
         }
-      } catch (err) {
-        console.error('Error loading history:', err);
+      } catch (e) {
+        console.error('Error cargando historial:', e);
+        priceHistory = [];
+        updateChart();
       }
     }
 
@@ -1045,7 +1072,7 @@
 
       if (currentData.brecha > alertConfig.threshold) {
         try {
-          await fetch('/api/send_alert', {
+          await fetchWithTimeout('/api/send_alert', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
